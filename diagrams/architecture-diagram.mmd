@@ -1,0 +1,101 @@
+flowchart TB
+    U[User Driver / Passenger]
+
+    subgraph F[Frontend React + Vite]
+        Router[React Router Routes
+/login
+/register
+/home
+/search
+/offer-ride
+/ride/:id
+/bookings
+/payment]
+        Layouts[AuthLayout + AppLayout]
+        Pages[Auth Pages
+App Pages
+Payment Page
+Bookings Page]
+        Components[Reusable UI Components
+RideCard BookingCard RouteMap]
+        AuthCtx[AuthContext]
+        Api[lib/api.js]
+    end
+
+    subgraph B[Backend Node.js + Express]
+        Server[server.js]
+        Middleware[CORS + JSON Parser + Error Middleware]
+
+        subgraph Routes[REST Routes]
+            AuthRoutes[/api/auth]
+            RideRoutes[/api/rides]
+            BookingRoutes[/api/bookings]
+            PaymentRoutes[/api/payments]
+        end
+
+        subgraph Controllers[Controllers]
+            AuthController[authController]
+            RideController[rideController]
+            BookingController[bookingController]
+            PaymentController[paymentController]
+        end
+
+        subgraph Domain[Config + Business Logic]
+            MockProfiles[mockProfiles]
+            RideUtils[rideUtils
+Haversine + Pricing + Route Normalize]
+            SeedUsers[seedUsers]
+        end
+
+        subgraph Models[Mongoose Models]
+            UserModel[(User)]
+            RideModel[(Ride)]
+            BookingModel[(Booking)]
+            PaymentModel[(Payment)]
+        end
+    end
+
+    subgraph D[Data + External Services]
+        Mongo[(MongoDB Atlas)]
+        Razorpay[Razorpay Test Mode]
+    end
+
+    U --> Router
+    Router --> Layouts
+    Layouts --> Pages
+    Pages --> Components
+    Pages --> AuthCtx
+    Pages --> Api
+    AuthCtx --> Api
+
+    Api --> Server
+    Server --> Middleware
+    Middleware --> AuthRoutes
+    Middleware --> RideRoutes
+    Middleware --> BookingRoutes
+    Middleware --> PaymentRoutes
+
+    AuthRoutes --> AuthController
+    RideRoutes --> RideController
+    BookingRoutes --> BookingController
+    PaymentRoutes --> PaymentController
+
+    AuthController --> MockProfiles
+    AuthController --> UserModel
+    RideController --> RideUtils
+    RideController --> UserModel
+    RideController --> RideModel
+    BookingController --> BookingModel
+    BookingController --> RideModel
+    BookingController --> UserModel
+    BookingController --> PaymentModel
+    PaymentController --> BookingModel
+    PaymentController --> PaymentModel
+    PaymentController --> Razorpay
+
+    UserModel --> Mongo
+    RideModel --> Mongo
+    BookingModel --> Mongo
+    PaymentModel --> Mongo
+    SeedUsers --> UserModel
+    SeedUsers --> Mongo

@@ -1,0 +1,107 @@
+sequenceDiagram
+    autonumber
+    actor Passenger
+    participant UI as React UI
+    participant API as API Client
+    participant BE as Express Backend
+    participant RideC as Ride Controller
+    participant BookC as Booking Controller
+    participant PayC as Payment Controller
+    participant Mongo as MongoDB Atlas
+    participant Razorpay as Razorpay
+    actor Driver
+
+    Passenger->>UI: Search rides
+    UI->>API: GET /api/rides/search?source&destination
+    API->>BE: search request
+    BE->>RideC: searchRides()
+    RideC->>Mongo: Find rides with seatsAvailable > 0
+    Mongo-->>RideC: Matching ride documents
+    RideC-->>BE: Filtered rides by route order
+    BE-->>API: Ride list
+    API-->>UI: Render ride cards
+
+    Passenger->>UI: Request seat
+    UI->>API: POST /api/bookings/request
+    API->>BE: requestBooking(rideId, passengerId)
+    BE->>BookC: requestBooking()
+    BookC->>Mongo: Validate ride + passenger + duplicates
+    Mongo-->>BookC: OK
+    BookC->>Mongo: Insert Booking(status=REQUESTED)
+    Mongo-->>BookC: Booking created
+    BookC-->>BE: Booking response
+    BE-->>API: REQUESTED booking
+    API-->>UI: Show request sent
+
+    Driver->>UI: Open bookings page
+    UI->>API: GET /api/bookings/incoming?driverId
+    API->>BE: incoming bookings request
+    BE->>BookC: getIncomingBookings()
+    BookC->>Mongo: Query bookings for driver's rides
+    Mongo-->>BookC: Incoming bookings
+    BookC-->>BE: Booking list
+    BE-->>API: Incoming requests
+    API-->>UI: Show incoming requests
+
+    Driver->>UI: Accept booking
+    UI->>API: POST /api/bookings/:id/accept
+    API->>BE: acceptBooking(bookingId, driverId)
+    BE->>BookC: acceptBooking()
+    BookC->>Mongo: Validate ownership + seatsAvailable
+    Mongo-->>BookC: OK
+    BookC->>Mongo: Decrement Ride.seatsAvailable
+    BookC->>Mongo: Update Booking.status = ACCEPTED
+    Mongo-->>BookC: Updated ride and booking
+    BookC-->>BE: ACCEPTED booking
+    BE-->>API: Accepted response
+    API-->>UI: Enable payment CTA
+
+    Passenger->>UI: Open payment page
+    UI->>API: POST /api/payments/intent
+    API->>BE: createOrder(bookingId)
+    BE->>PayC: createOrder()
+    PayC->>Mongo: Validate Booking.status == ACCEPTED
+    Mongo-->>PayC: Booking + ride data
+    PayC->>Razorpay: Create order(amount, receipt)
+    Razorpay-->>PayC: orderId
+    PayC->>Mongo: Upsert Payment(status=CREATED)
+    Mongo-->>PayC: Payment saved
+    PayC-->>BE: orderId + keyId + amount
+    BE-->>API: Payment init response
+    API-->>UI: Open Razorpay Checkout
+
+    Passenger->>Razorpay: Complete test payment
+    Razorpay-->>UI: razorpay_payment_id + razorpay_order_id
+    UI->>API: POST /api/payments/:id/confirm
+    API->>BE: paymentSuccess(orderId, paymentId)
+    BE->>PayC: paymentSuccess()
+    PayC->>Mongo: Find payment by orderId
+    Mongo-->>PayC: Payment + booking
+    PayC->>Mongo: Update Payment.status = PAID
+    PayC->>Mongo: Update Booking.status = PAID
+    Mongo-->>PayC: Saved
+    PayC-->>BE: Payment recorded
+    BE-->>API: Success response
+    API-->>UI: Redirect to /bookings
+
+    alt Passenger cancels before 24h window closes
+        Passenger->>UI: Cancel ride
+        UI->>API: POST /api/bookings/:id/cancel
+        API->>BE: cancelBooking(bookingId, passengerId)
+        BE->>BookC: cancelBooking()
+        BookC->>Mongo: Validate passenger + hoursUntilRide >= 24
+        Mongo-->>BookC: Booking + ride + payment
+        BookC->>Mongo: Update Booking.status = CANCELLED
+        BookC->>Mongo: Restore seat if previously accepted/paid
+        opt Booking was PAID
+            BookC->>Mongo: Update Payment.status = REFUND_INITIATED
+        end
+        Mongo-->>BookC: Cancellation persisted
+        BookC-->>BE: cancellation response + support email
+        BE-->>API: Cancellation confirmed
+        API-->>UI: Show refund/support alert
+    else Ride starts within 24h
+        BookC-->>BE: 400 Cannot cancel within 24 hours
+        BE-->>API: Error response
+        API-->>UI: Show cancellation locked message
+    end

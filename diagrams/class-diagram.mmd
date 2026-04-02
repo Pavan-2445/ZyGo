@@ -1,0 +1,104 @@
+classDiagram
+    class User {
+        +ObjectId id
+        +String aadhaarId
+        +String name
+        +Number age
+        +String dob
+        +String location
+        +String phone
+        +String address
+    }
+
+    class Ride {
+        +ObjectId id
+        +ObjectId driverId
+        +String source
+        +String destination
+        +String[] stops
+        +Date dateTime
+        +String vehicleType
+        +Number seatsTotal
+        +Number seatsAvailable
+        +Number pricePerSeat
+        +Number distance
+    }
+
+    class Booking {
+        +ObjectId id
+        +ObjectId rideId
+        +ObjectId passengerId
+        +String status
+        +String cancellationReason
+        +Date cancelledAt
+        +Date createdAt
+    }
+
+    class Payment {
+        +ObjectId id
+        +ObjectId bookingId
+        +String orderId
+        +String paymentId
+        +Number amount
+        +String status
+        +String refundId
+        +Date refundInitiatedAt
+        +String refundNote
+    }
+
+    class AuthController {
+        +register(req,res,next)
+        +login(req,res,next)
+        +previewIdentity(req,res,next)
+        +getUserById(req,res,next)
+        +listUsers(req,res,next)
+    }
+
+    class RideController {
+        +createRide(req,res,next)
+        +getRideById(req,res,next)
+        +searchRides(req,res,next)
+        +listRides(req,res,next)
+    }
+
+    class BookingController {
+        +requestBooking(req,res,next)
+        +acceptBooking(req,res,next)
+        +rejectBooking(req,res,next)
+        +cancelBooking(req,res,next)
+        +getIncomingBookings(req,res,next)
+        +getPassengerBookings(req,res,next)
+        +getBookingById(req,res,next)
+    }
+
+    class PaymentController {
+        +createOrder(req,res,next)
+        +paymentSuccess(req,res,next)
+    }
+
+    class RideUtils {
+        +calculateRouteDistance(route)
+        +calculatePricePerSeat(args)
+        +normalize(value)
+    }
+
+    class MockProfiles {
+        +aadhaarId -> profile
+    }
+
+    User "1" <-- "0..*" Ride : driverId
+    User "1" <-- "0..*" Booking : passengerId
+    Ride "1" <-- "0..*" Booking : rideId
+    Booking "1" <-- "0..1" Payment : bookingId
+
+    AuthController ..> User : uses
+    AuthController ..> MockProfiles : reads
+    RideController ..> Ride : manages
+    RideController ..> User : validates driver
+    RideController ..> RideUtils : calculates
+    BookingController ..> Booking : manages
+    BookingController ..> Ride : validates seats
+    BookingController ..> User : validates passenger
+    BookingController ..> Payment : checks refund/payment state
+    PaymentController ..> Payment : manages
+    PaymentController ..> Booking : validates acceptance

@@ -1,0 +1,65 @@
+flowchart LR
+    User[End User]
+    Browser[Browser UI]
+    Frontend[React App
+Routing + State + Animations]
+    API[API Client
+lib/api.js]
+    Express[Express Server]
+
+    subgraph FeatureBlocks[Backend Feature Blocks]
+        AuthBlock[Auth Block
+previewIdentity
+register
+login
+getUser]
+        RideBlock[Ride Block
+createRide
+searchRides
+getRide
+listRides]
+        BookingBlock[Booking Block
+request
+accept
+reject
+cancel
+incoming
+my bookings]
+        PaymentBlock[Payment Block
+create order
+confirm payment]
+    end
+
+    subgraph DataBlocks[Persistence Blocks]
+        UserDB[(users)]
+        RideDB[(rides)]
+        BookingDB[(bookings)]
+        PaymentDB[(payments)]
+    end
+
+    MockDB[(Mock Aadhaar Profiles)]
+    Razorpay[Razorpay Checkout + Orders]
+    Mongo[(MongoDB Atlas Cluster)]
+
+    User --> Browser --> Frontend --> API --> Express
+    Express --> AuthBlock
+    Express --> RideBlock
+    Express --> BookingBlock
+    Express --> PaymentBlock
+
+    AuthBlock --> MockDB
+    AuthBlock --> UserDB
+    RideBlock --> RideDB
+    RideBlock --> UserDB
+    BookingBlock --> BookingDB
+    BookingBlock --> RideDB
+    BookingBlock --> UserDB
+    BookingBlock --> PaymentDB
+    PaymentBlock --> BookingDB
+    PaymentBlock --> PaymentDB
+    PaymentBlock --> Razorpay
+
+    UserDB --> Mongo
+    RideDB --> Mongo
+    BookingDB --> Mongo
+    PaymentDB --> Mongo
